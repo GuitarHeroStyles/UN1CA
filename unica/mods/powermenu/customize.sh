@@ -82,6 +82,7 @@ if ! grep -q "CENTER_ICON_3P_VIEW" "$(FIND_SMALI "ViewType.smali")"; then
     ABORT "powermenu: ViewType.CENTER_ICON_3P_VIEW not found" || return 1
 fi
 
+mkdir -p "$(dirname "$SEDF")"
 : > "$SEDF"
 echo "s|@ICON_RET@|$ICON_RET|g" >> "$SEDF"
 RESOLVE "ISCONF" "isActionConfirming" "" "$PRESENTER" || return 1

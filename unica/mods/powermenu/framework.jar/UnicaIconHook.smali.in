@@ -1,0 +1,56 @@
+# Called (inside a try/catch) at the end of GlobalActionsContentItemView.setViewAttrs(View, boolean):
+# puts the icon of our entries on the item view (same approach as Firefds Kit).
+.class public final Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaIconHook;
+.super Ljava/lang/Object;
+
+.method public static applyIcon(Ljava/lang/Object;Landroid/view/View;)V
+    .locals 4
+
+    :try_start_0
+    check-cast p0, @ITEM_CLS@
+
+    iget-object v0, p0, @ITEM_CLS@->mViewModel:@VM_TYPE@
+
+    instance-of v1, v0, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerAction;
+
+    if-eqz v1, :done
+
+    check-cast v0, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerAction;
+
+    invoke-virtual {v0}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerAction;->unicaIcon()Landroid/graphics/drawable/BitmapDrawable;
+
+    move-result-object v1
+
+    if-eqz v1, :done
+
+    iget-object v2, p0, @ITEM_CLS@->mResourceFactory:@RF_TYPE@
+
+    sget-object v3, @RT_CLS@->ID_ICON:@RT_CLS@
+
+    @OP_RFGET@ {v2, v3}, @REF_RFGET@
+
+    move-result v2
+
+    invoke-virtual {p1, v2}, Landroid/view/View;->findViewById(I)Landroid/view/View;
+
+    move-result-object v2
+
+    instance-of v3, v2, Landroid/widget/ImageView;
+
+    if-eqz v3, :done
+
+    check-cast v2, Landroid/widget/ImageView;
+
+    invoke-virtual {v2, v1}, Landroid/widget/ImageView;->setImageDrawable(Landroid/graphics/drawable/Drawable;)V
+
+    :done
+    :try_end_0
+    .catchall {:try_start_0 .. :try_end_0} :catch_0
+
+    return-void
+
+    :catch_0
+    move-exception v0
+
+    return-void
+.end method

@@ -92,6 +92,18 @@ RESOLVE "SETNAME" "setName" "Ljava/lang/(String|CharSequence);" "$ACTIONINFO" ||
 RESOLVE "SETLABEL" "setLabel" "Ljava/lang/(String|CharSequence);" "$ACTIONINFO" || return 1
 RESOLVE "SETDESC" "setDescription" "Ljava/lang/(String|CharSequence);" "$ACTIONINFO" || return 1
 RESOLVE "SETVIEWTYPE" "setViewType" "L[^;]*ViewType;" "$ACTIONINFO" || return 1
+RESOLVE "CLEAR" "clearActions" "Ljava/lang/String;" "$PRESENTER" || return 1
+
+VMFACTORY="$(FIND_SMALI "ActionViewModelFactory.smali")"
+if [ ! -f "$VMFACTORY" ]; then
+    ABORT "powermenu: ActionViewModelFactory not found in framework.jar" || return 1
+fi
+RESOLVE "CREATE" "createActionViewModel" "L[^;]*SamsungGlobalActions;Ljava/lang/String;" "$VMFACTORY" || return 1
+VMF_TYPE="$(grep -m1 -E "^\.field .* mViewModelFactory:" "$PRESENTER" | sed -E 's/.*mViewModelFactory://')"
+if [ -z "$VMF_TYPE" ]; then
+    ABORT "powermenu: SamsungGlobalActionsPresenter.mViewModelFactory not found" || return 1
+fi
+echo "s|@VMF_TYPE@|$VMF_TYPE|g" >> "$SEDF"
 
 DEX_ROOT="${PRESENTER%%/$GA_REL/*}"
 OUT_PKG="$DEX_ROOT/$GA_REL/viewmodel"
@@ -100,6 +112,73 @@ EVAL "mkdir -p \"$OUT_PKG\""
 LOG "- Adding power menu classes to /system/system/framework/framework.jar"
 EVAL "sed -f \"$SEDF\" \"$MODPATH/framework.jar/UnicaPowerAction.smali.in\" > \"$OUT_PKG/UnicaPowerAction.smali\""
 EVAL "sed -f \"$SEDF\" \"$MODPATH/framework.jar/UnicaPowerMenu.smali.in\" > \"$OUT_PKG/UnicaPowerMenu.smali\""
+
+# WRAP_METHOD <smali> <name> <descriptor> <hook> <mode>
+# Renames the original method to <name>__unica and adds a method with the same signature that
+# first asks the static hook (UnicaPowerMenu.<hook>()Z).
+# mode "true": hook true -> return true; mode "void": hook true -> return without doing anything.
+WRAP_METHOD()
+{
+    local FILE="$1"
+    local NAME="$2"
+    local DESC="$3"
+    local HOOK="$4"
+    local MODE="$5"
+    local LINE
+    local MODS
+    local CLS
+
+    LINE="$(grep -E "^\.method (.* )?$NAME\(" "$FILE" | grep -F -- " $NAME$DESC" | head -n 1 || true)"
+    if [ -z "$LINE" ]; then
+        return 1
+    fi
+    MODS="${LINE#.method }"
+    MODS="${MODS%"$NAME$DESC"}"
+    if [[ " $MODS " == *" private "* ]] || [[ " $MODS " == *" static "* ]] || \
+            [[ " $MODS " == *" abstract "* ]] || [[ " $MODS " == *" native "* ]]; then
+        return 1
+    fi
+    CLS="$(grep -m1 "^\.class" "$FILE" | grep -o "L[^;]*;")"
+
+    awk -v OLD="$NAME$DESC" -v NEW="${NAME}__unica$DESC" '
+        /^\.method / {
+            n = length($0); k = length(OLD)
+            if (substr($0, n - k + 1) == OLD && substr($0, n - k, 1) == " ") {
+                $0 = substr($0, 1, n - k) NEW
+            }
+        }
+        { print }
+    ' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+    {
+        echo
+        echo ".method ${MODS}${NAME}${DESC}"
+        echo "    .locals 1"
+        echo
+        echo "    invoke-static {}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->${HOOK}()Z"
+        echo
+        echo "    move-result v0"
+        echo
+        echo "    if-eqz v0, :unica_orig"
+        echo
+        if [[ "$MODE" == "true" ]]; then
+            echo "    return v0"
+        else
+            echo "    return-void"
+        fi
+        echo
+        echo "    :unica_orig"
+        echo "    invoke-virtual {p0}, $CLS->${NAME}__unica${DESC}"
+        echo
+        if [[ "$MODE" == "true" ]]; then
+            echo "    move-result v0"
+            echo
+            echo "    return v0"
+        else
+            echo "    return-void"
+        fi
+        echo ".end method"
+    } >> "$FILE"
+}
 
 # INJECT <smali> <method signature> <tag> <invoke line>
 # Inserts a guarded call before every "return-void" of the method (exceptions are swallowed).
@@ -137,6 +216,26 @@ INJECT "$PRESENTER" "createDefaultActions()V" "unicapm" \
     "invoke-static {p0}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->addActions(Lcom/samsung/android/globalactions/presentation/SamsungGlobalActionsPresenter;)V" || \
     ABORT "powermenu: failed to hook createDefaultActions()" || return 1
 
+# Options that wrap existing methods; a missing method only disables that option
+LOG "- Hooking confirmation / lockscreen / secure confirm behaviour"
+WRAP_METHOD "$PRESENTER" "isActionConfirming" "()Z" "skipConfirm" "true" || \
+    LOGW "powermenu: could not wrap isActionConfirming(), \"Disable restart confirmation\" will not work"
+DIALOGBASE="$(FIND_SMALI "SamsungGlobalActionsDialogBase.smali")"
+if [ -f "$DIALOGBASE" ]; then
+    WRAP_METHOD "$DIALOGBASE" "showDialog" "()V" "blockShow" "void" || \
+        LOGW "powermenu: could not wrap showDialog(), \"Disable power menu on lockscreen\" will not work"
+else
+    LOGW "powermenu: SamsungGlobalActionsDialogBase not found"
+fi
+for c in RestartActionViewModel SafeModeActionViewModel PowerActionViewModel \
+        EmergencyActionViewModel DataModeActionViewModel; do
+    f="$(FIND_SMALI "$c.smali")"
+    if [ -f "$f" ]; then
+        WRAP_METHOD "$f" "isNeedSecureConfirm" "()Z" "secureConfirm" "true" || \
+            LOGW "powermenu: could not wrap $c.isNeedSecureConfirm()"
+    fi
+done
+
 # Icons are optional: without them the entries still work using the default item icon
 ICON_OK=false
 if [ -f "$ITEMVIEW" ] && [ -f "$RESFACTORY" ] && [ -f "$RESTYPE" ] && \
@@ -169,4 +268,5 @@ else
 fi
 
 unset GA_REL FWJAR SEDF PRESENTER ACTIONINFO VIEWMODEL ITEMVIEW RESFACTORY RESTYPE
+unset VMFACTORY VMF_TYPE DIALOGBASE
 unset IMPLEMENTED ICON_RET DEX_ROOT OUT_PKG ICON_OK ITEM_CLS RT_CLS VM_TYPE RF_TYPE

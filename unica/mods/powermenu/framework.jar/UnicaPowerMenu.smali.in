@@ -1,9 +1,401 @@
-# Called (inside a try/catch) at the end of SamsungGlobalActionsPresenter.createDefaultActions().
+# Static helpers for the advanced power menu. Every entry point swallows its own exceptions.
+# Settings (Settings.System) are written by Settings > UN1CA Settings > Extra settings.
 .class public final Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;
 .super Ljava/lang/Object;
 
+.method public static getInt(Ljava/lang/String;I)I
+    .locals 2
+
+    :try_start_0
+    invoke-static {}, Landroid/app/ActivityThread;->currentApplication()Landroid/app/Application;
+
+    move-result-object v0
+
+    if-eqz v0, :dflt
+
+    invoke-virtual {v0}, Landroid/content/Context;->getContentResolver()Landroid/content/ContentResolver;
+
+    move-result-object v0
+
+    invoke-static {v0, p0, p1}, Landroid/provider/Settings$System;->getInt(Landroid/content/ContentResolver;Ljava/lang/String;I)I
+
+    move-result p1
+
+    :dflt
+    :try_end_0
+    .catchall {:try_start_0 .. :try_end_0} :catch_0
+
+    return p1
+
+    :catch_0
+    move-exception v0
+
+    return p1
+.end method
+
+.method private static masterOn()Z
+    .locals 2
+
+    const-string v0, "unica_pm_enabled"
+
+    const/4 v1, 0x0
+
+    invoke-static {v0, v1}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->getInt(Ljava/lang/String;I)I
+
+    move-result v0
+
+    if-eqz v0, :off
+
+    const/4 v0, 0x1
+
+    return v0
+
+    :off
+    const/4 v0, 0x0
+
+    return v0
+.end method
+
+.method private static flag(Ljava/lang/String;)Z
+    .locals 2
+
+    invoke-static {}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->masterOn()Z
+
+    move-result v0
+
+    if-eqz v0, :off
+
+    const/4 v1, 0x0
+
+    invoke-static {p0, v1}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->getInt(Ljava/lang/String;I)I
+
+    move-result v0
+
+    if-eqz v0, :off
+
+    const/4 v0, 0x1
+
+    return v0
+
+    :off
+    const/4 v0, 0x0
+
+    return v0
+.end method
+
+.method private static keyguard()Landroid/app/KeyguardManager;
+    .locals 2
+
+    :try_start_0
+    invoke-static {}, Landroid/app/ActivityThread;->currentApplication()Landroid/app/Application;
+
+    move-result-object v0
+
+    const-string v1, "keyguard"
+
+    invoke-virtual {v0, v1}, Landroid/content/Context;->getSystemService(Ljava/lang/String;)Ljava/lang/Object;
+
+    move-result-object v0
+
+    check-cast v0, Landroid/app/KeyguardManager;
+
+    :try_end_0
+    .catchall {:try_start_0 .. :try_end_0} :catch_0
+
+    return-object v0
+
+    :catch_0
+    move-exception v0
+
+    const/4 v0, 0x0
+
+    return-object v0
+.end method
+
+# "Disable restart confirmation"
+.method public static skipConfirm()Z
+    .locals 1
+
+    const-string v0, "unica_pm_no_confirm"
+
+    invoke-static {v0}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->flag(Ljava/lang/String;)Z
+
+    move-result v0
+
+    return v0
+.end method
+
+# "Disable power menu on lockscreen"
+.method public static blockShow()Z
+    .locals 2
+
+    const-string v0, "unica_pm_no_lockscreen"
+
+    invoke-static {v0}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->flag(Ljava/lang/String;)Z
+
+    move-result v0
+
+    if-eqz v0, :no
+
+    invoke-static {}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->keyguard()Landroid/app/KeyguardManager;
+
+    move-result-object v1
+
+    if-eqz v1, :no
+
+    invoke-virtual {v1}, Landroid/app/KeyguardManager;->isKeyguardLocked()Z
+
+    move-result v0
+
+    return v0
+
+    :no
+    const/4 v0, 0x0
+
+    return v0
+.end method
+
+# "Unlock keyguard before actions": true when the device is secure-locked
+.method public static secureConfirm()Z
+    .locals 2
+
+    const-string v0, "unica_pm_unlock_first"
+
+    invoke-static {v0}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->flag(Ljava/lang/String;)Z
+
+    move-result v0
+
+    if-eqz v0, :no
+
+    invoke-static {}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->keyguard()Landroid/app/KeyguardManager;
+
+    move-result-object v1
+
+    if-eqz v1, :no
+
+    invoke-virtual {v1}, Landroid/app/KeyguardManager;->isKeyguardLocked()Z
+
+    move-result v0
+
+    if-eqz v0, :no
+
+    invoke-virtual {v1}, Landroid/app/KeyguardManager;->isKeyguardSecure()Z
+
+    move-result v0
+
+    return v0
+
+    :no
+    const/4 v0, 0x0
+
+    return v0
+.end method
+
+# idx -1 = stock data mode, 0..5 = Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerAction;
+.method private static enabled(I)Z
+    .locals 3
+
+    const/4 v2, -0x1
+
+    if-ne p0, v2, :c1
+
+    const-string v0, "unica_pm_datamode"
+
+    const/4 v1, 0x0
+
+    goto :get
+
+    :c1
+    const/4 v2, 0x0
+
+    if-ne p0, v2, :c2
+
+    const-string v0, "unica_pm_recovery"
+
+    const/4 v1, 0x1
+
+    goto :get
+
+    :c2
+    const/4 v2, 0x1
+
+    if-ne p0, v2, :c3
+
+    const-string v0, "unica_pm_download"
+
+    const/4 v1, 0x1
+
+    goto :get
+
+    :c3
+    const/4 v2, 0x2
+
+    if-ne p0, v2, :c4
+
+    const-string v0, "unica_pm_restartui"
+
+    const/4 v1, 0x1
+
+    goto :get
+
+    :c4
+    const/4 v2, 0x3
+
+    if-ne p0, v2, :c5
+
+    const-string v0, "unica_pm_screenshot"
+
+    const/4 v1, 0x0
+
+    goto :get
+
+    :c5
+    const/4 v2, 0x4
+
+    if-ne p0, v2, :c6
+
+    const-string v0, "unica_pm_screenrecord"
+
+    const/4 v1, 0x0
+
+    goto :get
+
+    :c6
+    const-string v0, "unica_pm_flashlight"
+
+    const/4 v1, 0x0
+
+    :get
+    invoke-static {}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->masterOn()Z
+
+    move-result v2
+
+    if-eqz v2, :off
+
+    invoke-static {v0, v1}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->getInt(Ljava/lang/String;I)I
+
+    move-result v0
+
+    if-eqz v0, :off
+
+    const/4 v0, 0x1
+
+    return v0
+
+    :off
+    const/4 v0, 0x0
+
+    return v0
+.end method
+
+# Display order: recovery, download, data mode, screenshot, restart One UI, flashlight, screen record
+.method private static orderFor(I)I
+    .locals 2
+
+    if-nez p0, :o1
+
+    const/4 v0, 0x0
+
+    return v0
+
+    :o1
+    const/4 v1, 0x1
+
+    if-ne p0, v1, :o2
+
+    return v1
+
+    :o2
+    const/4 v1, 0x2
+
+    if-ne p0, v1, :o3
+
+    const/4 v0, -0x1
+
+    return v0
+
+    :o3
+    const/4 v1, 0x3
+
+    if-ne p0, v1, :o4
+
+    return v1
+
+    :o4
+    const/4 v1, 0x4
+
+    if-ne p0, v1, :o5
+
+    const/4 v0, 0x2
+
+    return v0
+
+    :o5
+    const/4 v1, 0x5
+
+    if-ne p0, v1, :o6
+
+    return v1
+
+    :o6
+    const/4 v0, 0x4
+
+    return v0
+.end method
+
+.method private static clear(Lcom/samsung/android/globalactions/presentation/SamsungGlobalActionsPresenter;Ljava/lang/String;)V
+    .locals 0
+
+    :try_start_0
+    @OP_CLEAR@ {p0, p1}, @REF_CLEAR@
+
+    :try_end_0
+    .catchall {:try_start_0 .. :try_end_0} :catch_0
+
+    return-void
+
+    :catch_0
+    move-exception p0
+
+    return-void
+.end method
+
+# Adds an entry created by the stock factory (e.g. "data_mode")
+.method private static addStock(Lcom/samsung/android/globalactions/presentation/SamsungGlobalActionsPresenter;Ljava/lang/String;)V
+    .locals 1
+
+    :try_start_0
+    iget-object v0, p0, Lcom/samsung/android/globalactions/presentation/SamsungGlobalActionsPresenter;->mViewModelFactory:@VMF_TYPE@
+
+    @OP_CREATE@ {v0, p0, p1}, @REF_CREATE@
+
+    move-result-object v0
+
+    if-eqz v0, :end
+
+    @OP_ADD@ {p0, v0}, @REF_ADD@
+
+    :end
+    :try_end_0
+    .catchall {:try_start_0 .. :try_end_0} :catch_0
+
+    return-void
+
+    :catch_0
+    move-exception p0
+
+    return-void
+.end method
+
+# Called (inside a try/catch) at the end of SamsungGlobalActionsPresenter.createDefaultActions().
 .method public static addActions(Lcom/samsung/android/globalactions/presentation/SamsungGlobalActionsPresenter;)V
-    .locals 4
+    .locals 5
+
+    invoke-static {}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->masterOn()Z
+
+    move-result v0
+
+    if-eqz v0, :done
 
     invoke-static {}, Landroid/app/ActivityThread;->currentApplication()Landroid/app/Application;
 
@@ -15,21 +407,93 @@
 
     move-result-object v3
 
+    # Hide stock entries the user turned off
+    const-string v1, "unica_pm_poweroff"
+
+    const/4 v2, 0x1
+
+    invoke-static {v1, v2}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->getInt(Ljava/lang/String;I)I
+
+    move-result v1
+
+    if-nez v1, :keep_power
+
+    const-string v1, "power"
+
+    invoke-static {p0, v1}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->clear(Lcom/samsung/android/globalactions/presentation/SamsungGlobalActionsPresenter;Ljava/lang/String;)V
+
+    :keep_power
+    const-string v1, "unica_pm_restart"
+
+    const/4 v2, 0x1
+
+    invoke-static {v1, v2}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->getInt(Ljava/lang/String;I)I
+
+    move-result v1
+
+    if-nez v1, :keep_restart
+
+    const-string v1, "restart"
+
+    invoke-static {p0, v1}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->clear(Lcom/samsung/android/globalactions/presentation/SamsungGlobalActionsPresenter;Ljava/lang/String;)V
+
+    :keep_restart
+    const-string v1, "unica_pm_emergency"
+
+    const/4 v2, 0x1
+
+    invoke-static {v1, v2}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->getInt(Ljava/lang/String;I)I
+
+    move-result v1
+
+    if-nez v1, :keep_emergency
+
+    const-string v1, "emergency_call"
+
+    invoke-static {p0, v1}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->clear(Lcom/samsung/android/globalactions/presentation/SamsungGlobalActionsPresenter;Ljava/lang/String;)V
+
+    const-string v1, "emergency"
+
+    invoke-static {p0, v1}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->clear(Lcom/samsung/android/globalactions/presentation/SamsungGlobalActionsPresenter;Ljava/lang/String;)V
+
+    :keep_emergency
     const/4 v1, 0x0
 
     :loop
-    const/4 v2, 0x3
+    const/4 v2, 0x7
 
     if-ge v1, v2, :done
 
-    new-instance v2, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerAction;
+    invoke-static {v1}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->orderFor(I)I
 
-    invoke-direct {v2, p0, v0, v1}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerAction;-><init>(Lcom/samsung/android/globalactions/presentation/SamsungGlobalActionsPresenter;Landroid/content/Context;I)V
+    move-result v2
 
-    invoke-virtual {v2, v3}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerAction;->setUnicaIcon(Landroid/graphics/drawable/BitmapDrawable;)V
+    invoke-static {v2}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->enabled(I)Z
 
-    @OP_ADD@ {p0, v2}, @REF_ADD@
+    move-result v4
 
+    if-eqz v4, :next
+
+    const/4 v4, -0x1
+
+    if-ne v2, v4, :ours
+
+    const-string v4, "data_mode"
+
+    invoke-static {p0, v4}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->addStock(Lcom/samsung/android/globalactions/presentation/SamsungGlobalActionsPresenter;Ljava/lang/String;)V
+
+    goto :next
+
+    :ours
+    new-instance v4, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerAction;
+
+    invoke-direct {v4, p0, v0, v2}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerAction;-><init>(Lcom/samsung/android/globalactions/presentation/SamsungGlobalActionsPresenter;Landroid/content/Context;I)V
+
+    invoke-virtual {v4, v3}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerAction;->setUnicaIcon(Landroid/graphics/drawable/BitmapDrawable;)V
+
+    @OP_ADD@ {p0, v4}, @REF_ADD@
+
+    :next
     add-int/lit8 v1, v1, 0x1
 
     goto :loop
@@ -39,7 +503,7 @@
 .end method
 
 # Rasterises the stock SystemUI restart icon (may be a vector); null if not found.
-.method private static icon(Landroid/content/Context;)Landroid/graphics/drawable/BitmapDrawable;
+.method public static icon(Landroid/content/Context;)Landroid/graphics/drawable/BitmapDrawable;
     .locals 7
 
     :try_start_0

@@ -105,7 +105,7 @@ if [ -z "$VMF_TYPE" ]; then
 fi
 echo "s|@VMF_TYPE@|$VMF_TYPE|g" >> "$SEDF"
 
-DEX_ROOT="${PRESENTER%%/$GA_REL/*}"
+DEX_ROOT="${PRESENTER%%/"$GA_REL"/*}"
 OUT_PKG="$DEX_ROOT/$GA_REL/viewmodel"
 EVAL "mkdir -p \"$OUT_PKG\""
 

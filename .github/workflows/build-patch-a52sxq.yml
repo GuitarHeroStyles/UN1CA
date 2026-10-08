@@ -129,6 +129,9 @@ jobs:
           place "$(find_one SecSettings.apk '*/priv-app/SecSettings/SecSettings.apk')"
           place "$(find_one SystemUI.apk '*/priv-app/SystemUI/SystemUI.apk')"
           place "$(find_one privapp-permissions-unica-powermenu.xml '*/etc/permissions/*')"
+          for n in 0 1 2 3 4 5; do
+            place "$(find_one "p$n.png" '*/etc/unica_pm/*')"
+          done
 
           cp "$SRC_DIR/patchmodule/customize.sh" "$M/customize.sh"
           cp "$SRC_DIR/patchmodule/post-fs-data.sh" "$M/post-fs-data.sh"

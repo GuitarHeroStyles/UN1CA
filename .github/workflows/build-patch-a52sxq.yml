@@ -99,14 +99,36 @@ jobs:
           set -euo pipefail
           M="$SRC_DIR/out/patch_module"
           rm -rf "$M"
-          mkdir -p "$M/system/framework" "$M/system/priv-app/SecSettings" \
-            "$M/system/system_ext/priv-app/SystemUI" "$M/system/system_ext/etc/permissions"
+          # Copy a built file into the module, keeping its path relative to /system on the device.
+          # In this ROM system_ext is merged into system (WORK_DIR/system/system/system_ext),
+          # but a separate WORK_DIR/system_ext is handled too.
+          place()
+          {
+            f="$1"
+            case "$f" in
+              "$WORK_DIR"/system/system/*) rel="${f#"$WORK_DIR"/system/system/}" ;;
+              "$WORK_DIR"/system_ext/*) rel="system_ext/${f#"$WORK_DIR"/system_ext/}" ;;
+              *) echo "::error::unexpected path $f"; exit 1 ;;
+            esac
+            mkdir -p "$M/system/$(dirname "$rel")"
+            cp -v "$f" "$M/system/$rel"
+          }
+          # find_one <filename> <path-glob>: first match under the work dir
+          find_one()
+          {
+            r="$(find "$WORK_DIR/system" "$WORK_DIR/system_ext" -type f -name "$1" -path "$2" 2> /dev/null | head -n 1)"
+            if [ -z "$r" ]; then
+              echo "::error::$1 not found in the work dir"
+              find "$WORK_DIR" -maxdepth 3 -type d | head -30
+              exit 1
+            fi
+            echo "$r"
+          }
 
-          cp -v "$WORK_DIR/system/system/framework/framework.jar" "$M/system/framework/"
-          cp -v "$WORK_DIR/system/system/priv-app/SecSettings/SecSettings.apk" "$M/system/priv-app/SecSettings/"
-          cp -v "$WORK_DIR/system_ext/priv-app/SystemUI/SystemUI.apk" "$M/system/system_ext/priv-app/SystemUI/"
-          cp -v "$WORK_DIR/system_ext/etc/permissions/privapp-permissions-unica-powermenu.xml" \
-            "$M/system/system_ext/etc/permissions/"
+          place "$(find_one framework.jar '*/framework/framework.jar')"
+          place "$(find_one SecSettings.apk '*/priv-app/SecSettings/SecSettings.apk')"
+          place "$(find_one SystemUI.apk '*/priv-app/SystemUI/SystemUI.apk')"
+          place "$(find_one privapp-permissions-unica-powermenu.xml '*/etc/permissions/*')"
 
           cp "$SRC_DIR/patchmodule/customize.sh" "$M/customize.sh"
           SHORT="${GITHUB_SHA::7}"

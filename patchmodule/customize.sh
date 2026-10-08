@@ -33,10 +33,7 @@ cert_id()
 if command -v unzip > /dev/null 2>&1 && command -v sha256sum > /dev/null 2>&1; then
     for apk in system/priv-app/SecSettings/SecSettings.apk \
             system/system_ext/priv-app/SystemUI/SystemUI.apk; do
-        case "$apk" in
-            */system_ext/*) CURRENT="/system_ext/${apk#system/system_ext/}" ;;
-            *) CURRENT="/$apk" ;;
-        esac
+        CURRENT="/$apk"
         OLD="$(cert_id "$CURRENT")"
         NEW="$(cert_id "$MODPATH/$apk")"
         if [ -z "$OLD" ] || [ -z "$NEW" ]; then

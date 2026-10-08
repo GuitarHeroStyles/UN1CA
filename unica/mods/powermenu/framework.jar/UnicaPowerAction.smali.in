@@ -130,6 +130,39 @@
     return-void
 .end method
 
+# Reboots with PowerManager; SystemUI lacks android.permission.REBOOT, so on failure the
+# Settings app (which has it) is asked to do it.
+.method private reboot(Ljava/lang/String;)V
+    .locals 3
+
+    :try_start_0
+    iget-object v0, p0, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerAction;->mContext:Landroid/content/Context;
+
+    const-string v1, "power"
+
+    invoke-virtual {v0, v1}, Landroid/content/Context;->getSystemService(Ljava/lang/String;)Ljava/lang/Object;
+
+    move-result-object v0
+
+    check-cast v0, Landroid/os/PowerManager;
+
+    invoke-virtual {v0, p1}, Landroid/os/PowerManager;->reboot(Ljava/lang/String;)V
+
+    :try_end_0
+    .catchall {:try_start_0 .. :try_end_0} :catch_0
+
+    return-void
+
+    :catch_0
+    move-exception v0
+
+    iget-object v1, p0, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerAction;->mContext:Landroid/content/Context;
+
+    invoke-static {v1, p1}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->viaSettings(Landroid/content/Context;Ljava/lang/String;)V
+
+    return-void
+.end method
+
 # Runs the action (the menu is already confirmed/dismissed when needed)
 .method private perform()V
     .locals 15
@@ -269,17 +302,7 @@
     return-void
 
     :reboot
-    iget-object v1, p0, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerAction;->mContext:Landroid/content/Context;
-
-    const-string v2, "power"
-
-    invoke-virtual {v1, v2}, Landroid/content/Context;->getSystemService(Ljava/lang/String;)Ljava/lang/Object;
-
-    move-result-object v1
-
-    check-cast v1, Landroid/os/PowerManager;
-
-    invoke-virtual {v1, v0}, Landroid/os/PowerManager;->reboot(Ljava/lang/String;)V
+    invoke-direct {p0, v0}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerAction;->reboot(Ljava/lang/String;)V
 
     :try_end_0
     .catchall {:try_start_0 .. :try_end_0} :catch_0

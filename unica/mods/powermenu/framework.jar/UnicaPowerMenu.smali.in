@@ -691,3 +691,45 @@
 
     return-void
 .end method
+
+# Asks the Settings app (which holds android.permission.REBOOT) to reboot for us
+.method public static viaSettings(Landroid/content/Context;Ljava/lang/String;)V
+    .locals 4
+
+    :try_start_0
+    new-instance v0, Landroid/content/Intent;
+
+    invoke-direct {v0}, Landroid/content/Intent;-><init>()V
+
+    new-instance v1, Landroid/content/ComponentName;
+
+    const-string v2, "com.android.settings"
+
+    const-string v3, "io.mesalabs.unica.UnicaRebootActivity"
+
+    invoke-direct {v1, v2, v3}, Landroid/content/ComponentName;-><init>(Ljava/lang/String;Ljava/lang/String;)V
+
+    invoke-virtual {v0, v1}, Landroid/content/Intent;->setComponent(Landroid/content/ComponentName;)Landroid/content/Intent;
+
+    const-string v1, "reason"
+
+    invoke-virtual {v0, v1, p1}, Landroid/content/Intent;->putExtra(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
+
+    const/high16 v1, 0x10000000
+
+    invoke-virtual {v0, v1}, Landroid/content/Intent;->addFlags(I)Landroid/content/Intent;
+
+    invoke-virtual {p0, v0}, Landroid/content/Context;->startActivity(Landroid/content/Intent;)V
+
+    :try_end_0
+    .catchall {:try_start_0 .. :try_end_0} :catch_0
+
+    return-void
+
+    :catch_0
+    move-exception v0
+
+    invoke-static {p0, v0}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->fail(Landroid/content/Context;Ljava/lang/Throwable;)V
+
+    return-void
+.end method

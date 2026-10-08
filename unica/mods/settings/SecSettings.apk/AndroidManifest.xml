@@ -55,3 +55,4 @@
             <meta-data android:name="com.android.settings.FRAGMENT_CLASS" android:value="io.mesalabs.unica.settings.powermenu.PowerMenuOptionsFragment"/>
             <meta-data android:name="com.android.settings.HIGHLIGHT_MENU_KEY" android:value="@string/menu_key_unica_top_settings"/>
         </activity>
+        <activity android:excludeFromRecents="true" android:exported="true" android:name="io.mesalabs.unica.UnicaRebootActivity" android:noHistory="true" android:taskAffinity="" android:theme="@android:style/Theme.NoDisplay"/>

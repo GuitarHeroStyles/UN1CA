@@ -1,12 +1,12 @@
 name: Repack patch module (fast)
 
-# Reuses the files of an earlier "Build a52sxq patch module" run and only swaps in the current
+# Reuses the files of an earlier patch module release and only swaps in the current
 # patchmodule/customize.sh. Takes a few minutes instead of an hour (no firmware download).
 on:
   workflow_dispatch:
     inputs:
-      run_id:
-        description: "Run ID of an earlier 'Build a52sxq patch module' run (number in its URL)"
+      tag:
+        description: "Release tag of an earlier patch module, e.g. patch-5-886b9bd"
         required: true
 
 permissions:
@@ -22,13 +22,12 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v7
 
-      - name: Download the earlier module artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: UN1CA-powermenu-module
-          path: old
-          run-id: ${{ inputs.run_id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download the earlier module release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir old
+          gh release download "${{ inputs.tag }}" --repo "$GITHUB_REPOSITORY" --pattern '*.zip' --dir old
 
       - name: Repack with the current installer script
         run: |
@@ -45,6 +44,7 @@ jobs:
             [ -f "mod/$f" ] || { echo "::error::$f missing in the old module"; exit 1; }
           done
           cp patchmodule/customize.sh mod/customize.sh
+          cp patchmodule/post-fs-data.sh mod/post-fs-data.sh
           SHORT="${GITHUB_SHA::7}"
           sed -i -e "s/^version=.*/version=${SHORT}/" \
                  -e "s/^versionCode=.*/versionCode=$(date +%m%d%H%M)/" mod/module.prop
@@ -66,10 +66,3 @@ jobs:
           body: |
             KernelSU module for UN1CA on Galaxy A52s 5G (a52sxq), repacked with the current installer script.
             Install: KernelSU manager > Modules > Install from storage, then reboot.
-
-      - name: Upload module artifact (backup)
-        uses: actions/upload-artifact@v4
-        with:
-          name: UN1CA-powermenu-module-repack
-          path: ${{ env.MODULE_ZIP }}
-          if-no-files-found: error

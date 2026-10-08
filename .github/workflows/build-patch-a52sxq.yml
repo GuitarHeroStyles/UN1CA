@@ -131,6 +131,7 @@ jobs:
           place "$(find_one privapp-permissions-unica-powermenu.xml '*/etc/permissions/*')"
 
           cp "$SRC_DIR/patchmodule/customize.sh" "$M/customize.sh"
+          cp "$SRC_DIR/patchmodule/post-fs-data.sh" "$M/post-fs-data.sh"
           SHORT="${GITHUB_SHA::7}"
           {
             echo "id=unica_powermenu"
@@ -160,10 +161,4 @@ jobs:
             KernelSU module for UN1CA on Galaxy A52s 5G (a52sxq).
             Install: KernelSU manager > Modules > Install from storage, then reboot.
             Safe mode / removal: hold Volume Down while booting, or delete the module in the manager.
-
-      - name: Upload module artifact (backup)
-        uses: actions/upload-artifact@v4
-        with:
-          name: UN1CA-powermenu-module
-          path: ${{ env.MODULE_ZIP }}
-          if-no-files-found: error
+            Download the .zip below directly (do not use the Actions artifact, it is zipped twice).

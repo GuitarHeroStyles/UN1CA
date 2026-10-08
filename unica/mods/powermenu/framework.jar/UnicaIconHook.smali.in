@@ -1,5 +1,6 @@
 # Called (inside a try/catch) at the end of GlobalActionsContentItemView.setViewAttrs(View, boolean):
 # puts the icon of our entries on the item view (same approach as Firefds Kit).
+# The item view fields are private, so they are read by reflection.
 .class public final Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaIconHook;
 .super Ljava/lang/Object;
 
@@ -7,9 +8,13 @@
     .locals 4
 
     :try_start_0
-    check-cast p0, @ITEM_CLS@
+    const-class v0, @ITEM_CLS@
 
-    iget-object v0, p0, @ITEM_CLS@->mViewModel:@VM_TYPE@
+    const-string v1, "mViewModel"
+
+    invoke-static {v0, p0, v1}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->field(Ljava/lang/Class;Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;
+
+    move-result-object v0
 
     const-string v1, "model="
 
@@ -31,7 +36,15 @@
 
     if-eqz v1, :done
 
-    iget-object v2, p0, @ITEM_CLS@->mResourceFactory:@RF_TYPE@
+    const-class v2, @ITEM_CLS@
+
+    const-string v3, "mResourceFactory"
+
+    invoke-static {v2, p0, v3}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->field(Ljava/lang/Class;Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;
+
+    move-result-object v2
+
+    check-cast v2, @RF_TYPE@
 
     sget-object v3, @RT_CLS@->ID_ICON:@RT_CLS@
 

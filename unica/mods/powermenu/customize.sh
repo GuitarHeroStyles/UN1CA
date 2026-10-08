@@ -279,6 +279,17 @@ if [ -f "$ITEMVIEW" ] && [ -f "$RESFACTORY" ] && [ -f "$RESTYPE" ] && \
     fi
 fi
 
+# Debug: print the real shape of the power menu item classes to the build log
+if [ -f "$ITEMVIEW" ]; then
+    LOG "[dbg] files in $(dirname "${ITEMVIEW#"$FWJAR"/}"):"
+    while IFS= read -r l; do LOG "[dbg]   $l"; done < <(find "$(dirname "$ITEMVIEW")" -maxdepth 1 -name "*.smali" -printf "%f\n" | sort | head -60)
+    while IFS= read -r l; do LOG "[dbg] $l"; done < <(grep -E "^\.(class|super|field|method)" "$ITEMVIEW" | head -60)
+    while IFS= read -r l; do LOG "[dbg] $l"; done < <(sed -n '/^\.method .*setViewAttrs(/,/^\.end method/p' "$ITEMVIEW" | head -140)
+fi
+if [ -f "$ACTIONINFO" ]; then
+    while IFS= read -r l; do LOG "[dbg] ActionInfo: $l"; done < <(grep -E "^\.(field|method)" "$ACTIONINFO" | head -60)
+fi
+
 if $ICON_OK; then
     EVAL "sed -f \"$SEDF\" \"$MODPATH/framework.jar/UnicaIconHook.smali.in\" > \"$OUT_PKG/UnicaIconHook.smali\""
     LOG "- Hooking GlobalActionsContentItemView.setViewAttrs()"

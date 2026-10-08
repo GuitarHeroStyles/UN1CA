@@ -11,6 +11,10 @@
 
     iget-object v0, p0, @ITEM_CLS@->mViewModel:@VM_TYPE@
 
+    const-string v1, "model="
+
+    invoke-static {v1, v0}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->logObj(Ljava/lang/String;Ljava/lang/Object;)V
+
     instance-of v1, v0, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerAction;
 
     if-eqz v1, :done
@@ -20,6 +24,10 @@
     invoke-virtual {v0}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerAction;->unicaIcon()Landroid/graphics/drawable/BitmapDrawable;
 
     move-result-object v1
+
+    const-string v2, "icon="
+
+    invoke-static {v2, v1}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->logObj(Ljava/lang/String;Ljava/lang/Object;)V
 
     if-eqz v1, :done
 
@@ -34,6 +42,10 @@
     invoke-virtual {p1, v2}, Landroid/view/View;->findViewById(I)Landroid/view/View;
 
     move-result-object v2
+
+    const-string v3, "iconView="
+
+    invoke-static {v3, v2}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->logObj(Ljava/lang/String;Ljava/lang/Object;)V
 
     instance-of v3, v2, Landroid/widget/ImageView;
 
@@ -52,5 +64,14 @@
     :catch_0
     move-exception v0
 
+    if-eqz p1, :out
+
+    invoke-virtual {p1}, Landroid/view/View;->getContext()Landroid/content/Context;
+
+    move-result-object v1
+
+    invoke-static {v1, v0}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaPowerMenu;->fail(Landroid/content/Context;Ljava/lang/Throwable;)V
+
+    :out
     return-void
 .end method

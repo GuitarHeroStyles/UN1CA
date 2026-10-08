@@ -1,0 +1,147 @@
+name: Build a52sxq patch module
+
+# Builds only the files changed by the UN1CA mods and packs them into a small KernelSU/Magisk
+# module (no full ROM). Install it from the KernelSU manager: Modules > Install from storage.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build a52sxq patch
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+        with:
+          submodules: 'recursive'
+
+      - name: Free disk space (1/3)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          sudo docker builder prune -a
+
+      - name: Free disk space (2/3)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          preinstalled-runtimes: true
+
+      - name: Free disk space (3/3)
+        uses: rokibhasansagar/slimhub_actions@main
+        with:
+          retain: 'compiler_cmake'
+
+      - name: Set up build environment
+        env:
+          PLATFORM_KEY_PK8: ${{ secrets.PLATFORM_KEY_PK8 }}
+          PLATFORM_KEY_PEM: ${{ secrets.PLATFORM_KEY_PEM }}
+        run: |
+          sudo apt update
+          DEBIAN_FRONTEND=noninteractive sudo apt install -yq \
+            attr ccache clang ffmpeg libbrotli-dev libbz2-dev \
+            libgtest-dev libprotobuf-dev libunwind-dev libpcre2-dev \
+            libzstd-dev linux-modules-extra-$(uname -r) lld protobuf-compiler webp
+          sudo modprobe erofs f2fs
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$PLATFORM_KEY_PK8" ] && [ -n "$PLATFORM_KEY_PEM" ]; then
+            echo -n "$PLATFORM_KEY_PK8" | base64 --decode > security/unica_platform.pk8
+            echo -n "$PLATFORM_KEY_PEM" | base64 --decode > security/unica_platform.x509.pem
+          fi
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Generate build config
+        run: |
+          source ./buildenv.sh a52sxq
+          {
+            echo "DEBUG=$DEBUG"
+            echo "SRC_DIR=$SRC_DIR"
+            echo "OUT_DIR=$OUT_DIR"
+            echo "ODIN_DIR=$ODIN_DIR"
+            echo "FW_DIR=$FW_DIR"
+            echo "TOOLS_DIR=$TOOLS_DIR"
+            echo "APKTOOL_DIR=$APKTOOL_DIR"
+            echo "WORK_DIR=$WORK_DIR"
+            echo "TMP_DIR=$TMP_DIR"
+          } >> "$GITHUB_ENV"
+          sed -e "/Automatically/d" -e "s/\"//g" "$OUT_DIR/config.sh" >> "$GITHUB_ENV"
+          echo "$TOOLS_DIR/bin" >> "$GITHUB_PATH"
+
+      - name: Build dependencies
+        run: ./scripts/build_dependencies.sh
+
+      - name: Download stock firmwares
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 60
+          max_attempts: 3
+          retry_on: error
+          command: ./scripts/download_fw.sh
+
+      - name: Extract stock firmwares
+        run: ./scripts/extract_fw.sh
+
+      - name: Build ROM files (no image, no zip)
+        run: ./scripts/make_rom.sh --no-target-files
+
+      - name: Pack KernelSU module
+        run: |
+          set -euo pipefail
+          M="$SRC_DIR/out/patch_module"
+          rm -rf "$M"
+          mkdir -p "$M/system/framework" "$M/system/priv-app/SecSettings" \
+            "$M/system/system_ext/priv-app/SystemUI" "$M/system/system_ext/etc/permissions"
+
+          cp -v "$WORK_DIR/system/system/framework/framework.jar" "$M/system/framework/"
+          cp -v "$WORK_DIR/system/system/priv-app/SecSettings/SecSettings.apk" "$M/system/priv-app/SecSettings/"
+          cp -v "$WORK_DIR/system_ext/priv-app/SystemUI/SystemUI.apk" "$M/system/system_ext/priv-app/SystemUI/"
+          cp -v "$WORK_DIR/system_ext/etc/permissions/privapp-permissions-unica-powermenu.xml" \
+            "$M/system/system_ext/etc/permissions/"
+
+          cp "$SRC_DIR/patchmodule/customize.sh" "$M/customize.sh"
+          SHORT="${GITHUB_SHA::7}"
+          {
+            echo "id=unica_powermenu"
+            echo "name=UN1CA advanced power menu"
+            echo "version=$SHORT"
+            echo "versionCode=${GITHUB_RUN_NUMBER}"
+            echo "author=GuitarHeroStyles"
+            echo "description=Adds Recovery, Download, Restart One UI and more to the power menu, with settings in UN1CA Settings > Extra settings."
+          } > "$M/module.prop"
+
+          mkdir -p "$SRC_DIR/out/release"
+          OUT="$SRC_DIR/out/release/UN1CA-powermenu-a52sxq-${SHORT}.zip"
+          (cd "$M" && zip -r -X -9 "$OUT" .)
+          ls -la "$OUT"
+          sha256sum "$OUT"
+          echo "MODULE_ZIP=$OUT" >> "$GITHUB_ENV"
+          echo "MODULE_TAG=patch-${GITHUB_RUN_NUMBER}-${SHORT}" >> "$GITHUB_ENV"
+
+      - name: Publish module as a release (direct download)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.MODULE_TAG }}
+          name: Power menu patch ${{ env.MODULE_TAG }}
+          prerelease: true
+          files: ${{ env.MODULE_ZIP }}
+          body: |
+            KernelSU module for UN1CA on Galaxy A52s 5G (a52sxq).
+            Install: KernelSU manager > Modules > Install from storage, then reboot.
+            Safe mode / removal: hold Volume Down while booting, or delete the module in the manager.
+
+      - name: Upload module artifact (backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: UN1CA-powermenu-module
+          path: ${{ env.MODULE_ZIP }}
+          if-no-files-found: error

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lets SystemUI reboot into Recovery/Download from the power menu (see unica/mods/powermenu). -->
+<permissions>
+    <privapp-permissions package="com.android.systemui">
+        <permission name="android.permission.REBOOT"/>
+        <permission name="android.permission.RECOVERY"/>
+    </privapp-permissions>
+</permissions>

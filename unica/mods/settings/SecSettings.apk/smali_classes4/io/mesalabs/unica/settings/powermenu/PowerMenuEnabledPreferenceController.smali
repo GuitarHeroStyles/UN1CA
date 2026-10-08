@@ -3,6 +3,10 @@
 .source "PowerMenuEnabledPreferenceController.java"
 
 
+# instance fields
+.field private mScreen:Landroidx/preference/PreferenceScreen;
+
+
 # direct methods
 .method public constructor <init>(Landroid/content/Context;Ljava/lang/String;)V
     .locals 0
@@ -150,21 +154,23 @@
 .end method
 
 .method public setChecked(Z)Z
-    .locals 1
+    .locals 3
 
-    iget-object p0, p0, Lcom/android/settingslib/core/AbstractPreferenceController;->mContext:Landroid/content/Context;
+    iget-object v0, p0, Lcom/android/settingslib/core/AbstractPreferenceController;->mContext:Landroid/content/Context;
 
-    invoke-virtual {p0}, Landroid/content/Context;->getContentResolver()Landroid/content/ContentResolver;
+    invoke-virtual {v0}, Landroid/content/Context;->getContentResolver()Landroid/content/ContentResolver;
 
-    move-result-object p0
+    move-result-object v0
 
-    const-string v0, "unica_pm_enabled"
+    const-string v1, "unica_pm_enabled"
 
-    invoke-static {p0, v0, p1}, Landroid/provider/Settings$System;->putInt(Landroid/content/ContentResolver;Ljava/lang/String;I)Z
+    invoke-static {v0, v1, p1}, Landroid/provider/Settings$System;->putInt(Landroid/content/ContentResolver;Ljava/lang/String;I)Z
 
-    move-result p0
+    move-result v0
 
-    return p0
+    invoke-direct {p0, p1}, Lio/mesalabs/unica/settings/powermenu/PowerMenuEnabledPreferenceController;->applyVisibility(Z)V
+
+    return v0
 .end method
 
 .method public bridge synthetic useDynamicSliceSummary()Z
@@ -173,4 +179,78 @@
     const/4 p0, 0x0
 
     return p0
+.end method
+
+.method private applyVisibility(Z)V
+    .locals 4
+
+    iget-object v0, p0, Lio/mesalabs/unica/settings/powermenu/PowerMenuEnabledPreferenceController;->mScreen:Landroidx/preference/PreferenceScreen;
+
+    if-eqz v0, :done
+
+    const/4 v1, 0x0
+
+    :loop
+    const/4 v2, 0x4
+
+    if-ge v1, v2, :done
+
+    packed-switch v1, :pswitch_data_0
+
+    const-string v2, "unica_pm_unlock_first"
+
+    goto :find
+
+    :pswitch_0
+    const-string v2, "unica_pm_options"
+
+    goto :find
+
+    :pswitch_1
+    const-string v2, "unica_pm_no_confirm"
+
+    goto :find
+
+    :pswitch_2
+    const-string v2, "unica_pm_no_lockscreen"
+
+    :find
+    invoke-virtual {v0, v2}, Landroidx/preference/PreferenceGroup;->findPreference(Ljava/lang/CharSequence;)Landroidx/preference/Preference;
+
+    move-result-object v2
+
+    if-eqz v2, :next
+
+    invoke-virtual {v2, p1}, Landroidx/preference/Preference;->setVisible(Z)V
+
+    :next
+    add-int/lit8 v1, v1, 0x1
+
+    goto :loop
+
+    :done
+    return-void
+
+    :pswitch_data_0
+    .packed-switch 0x0
+        :pswitch_0
+        :pswitch_1
+        :pswitch_2
+    .end packed-switch
+.end method
+
+.method public displayPreference(Landroidx/preference/PreferenceScreen;)V
+    .locals 1
+
+    invoke-super {p0, p1}, Lcom/android/settings/core/TogglePreferenceController;->displayPreference(Landroidx/preference/PreferenceScreen;)V
+
+    iput-object p1, p0, Lio/mesalabs/unica/settings/powermenu/PowerMenuEnabledPreferenceController;->mScreen:Landroidx/preference/PreferenceScreen;
+
+    invoke-virtual {p0}, Lio/mesalabs/unica/settings/powermenu/PowerMenuEnabledPreferenceController;->isChecked()Z
+
+    move-result v0
+
+    invoke-direct {p0, v0}, Lio/mesalabs/unica/settings/powermenu/PowerMenuEnabledPreferenceController;->applyVisibility(Z)V
+
+    return-void
 .end method

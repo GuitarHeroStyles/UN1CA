@@ -135,10 +135,12 @@ WRAP_METHOD()
     fi
     MODS="${LINE#.method }"
     MODS="${MODS%"$NAME$DESC"}"
-    if [[ " $MODS " == *" private "* ]] || [[ " $MODS " == *" static "* ]] || \
-            [[ " $MODS " == *" abstract "* ]] || [[ " $MODS " == *" native "* ]]; then
+    if [[ " $MODS " == *" static "* ]] || [[ " $MODS " == *" abstract "* ]] || \
+            [[ " $MODS " == *" native "* ]]; then
         return 1
     fi
+    local INVOKE="invoke-virtual"
+    [[ " $MODS " == *" private "* ]] && INVOKE="invoke-direct"
     CLS="$(grep -m1 "^\.class" "$FILE" | grep -o "L[^;]*;")"
 
     awk -v OLD="$NAME$DESC" -v NEW="${NAME}__unica$DESC" '
@@ -168,7 +170,7 @@ WRAP_METHOD()
         fi
         echo
         echo "    :unica_orig"
-        echo "    invoke-virtual {p0}, $CLS->${NAME}__unica${DESC}"
+        echo "    $INVOKE {p0}, $CLS->${NAME}__unica${DESC}"
         echo
         if [[ "$MODE" == "true" ]]; then
             echo "    move-result v0"
@@ -233,9 +235,28 @@ for c in RestartActionViewModel SafeModeActionViewModel PowerActionViewModel \
     f="$(FIND_SMALI "$c.smali")"
     if [ -f "$f" ]; then
         WRAP_METHOD "$f" "isNeedSecureConfirm" "()Z" "secureConfirm" "true" || \
-            LOGW "powermenu: could not wrap $c.isNeedSecureConfirm()"
+            LOGW "powermenu: could not wrap $c.isNeedSecureConfirm() (found: $(grep -m1 "isNeedSecureConfirm" "$f" || echo none))"
     fi
 done
+
+# SystemUI needs REBOOT/RECOVERY to reboot into Recovery/Download from the power menu
+DECODE_APK "system_ext" "priv-app/SystemUI/SystemUI.apk"
+SYSUI_MANIFEST="$APKTOOL_DIR/system_ext/priv-app/SystemUI/SystemUI.apk/AndroidManifest.xml"
+if [ -f "$SYSUI_MANIFEST" ]; then
+    for p in REBOOT RECOVERY; do
+        if ! grep -q "android.permission.$p\"" "$SYSUI_MANIFEST"; then
+            LOG "- Adding android.permission.$p to SystemUI manifest"
+            awk -v PERM="    <uses-permission android:name=\"android.permission.$p\"/>" '
+                !done && /^[[:space:]]*<application[ >]/ { print PERM; done = 1 }
+                { print }
+            ' "$SYSUI_MANIFEST" > "$SYSUI_MANIFEST.tmp" && mv "$SYSUI_MANIFEST.tmp" "$SYSUI_MANIFEST"
+            grep -q "android.permission.$p\"" "$SYSUI_MANIFEST" || \
+                LOGW "powermenu: could not add $p to the SystemUI manifest"
+        fi
+    done
+else
+    LOGW "powermenu: SystemUI manifest not found, Recovery/Download may lack permission"
+fi
 
 # Icons are optional: without them the entries still work using the default item icon
 ICON_OK=false
@@ -269,5 +290,5 @@ else
 fi
 
 unset GA_REL FWJAR SEDF PRESENTER ACTIONINFO VIEWMODEL ITEMVIEW RESFACTORY RESTYPE
-unset VMFACTORY VMF_TYPE DIALOGBASE
+unset VMFACTORY VMF_TYPE DIALOGBASE SYSUI_MANIFEST
 unset IMPLEMENTED ICON_RET DEX_ROOT OUT_PKG ICON_OK ITEM_CLS RT_CLS VM_TYPE RF_TYPE

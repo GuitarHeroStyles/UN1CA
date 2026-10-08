@@ -5,11 +5,14 @@ SKIPUNZIP=0
 
 ui_print "- UN1CA advanced power menu patch"
 
-DEVICE="$(getprop ro.product.device)"
-case "$DEVICE" in
-    a52sxq*) ;;
-    *) abort "! Unsupported device: $DEVICE (this patch is only for a52sxq)" ;;
+# UN1CA is a port of Galaxy S22 firmware, so ro.product.device says "r0q". Look at the
+# properties that still describe the real hardware (vendor/odm, boot model).
+IDS="$(getprop ro.product.vendor.device) $(getprop ro.product.odm.device) $(getprop ro.boot.em.model) $(getprop ro.product.vendor.model) $(getprop ro.product.device)"
+case "$IDS" in
+    *a52sxq*|*SM-A528*) ;;
+    *) abort "! Unsupported device (this patch is only for Galaxy A52s 5G). Properties: $IDS" ;;
 esac
+ui_print "- Device OK: Galaxy A52s 5G"
 
 if [ -z "$(getprop ro.unica.version)" ]; then
     abort "! This is not a UN1CA build (ro.unica.version is missing)"

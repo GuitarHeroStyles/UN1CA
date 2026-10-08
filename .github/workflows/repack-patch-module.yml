@@ -1,0 +1,75 @@
+name: Repack patch module (fast)
+
+# Reuses the files of an earlier "Build a52sxq patch module" run and only swaps in the current
+# patchmodule/customize.sh. Takes a few minutes instead of an hour (no firmware download).
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Run ID of an earlier 'Build a52sxq patch module' run (number in its URL)"
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  repack:
+    name: Repack module
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Download the earlier module artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: UN1CA-powermenu-module
+          path: old
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Repack with the current installer script
+        run: |
+          set -euo pipefail
+          ls -la old
+          OLD="$(find old -maxdepth 1 -name '*.zip' | head -n 1)"
+          [ -n "$OLD" ] || { echo "::error::no zip found in the old artifact"; exit 1; }
+          mkdir mod
+          unzip -q "$OLD" -d mod
+          for f in module.prop customize.sh system/framework/framework.jar \
+              system/priv-app/SecSettings/SecSettings.apk \
+              system/system_ext/priv-app/SystemUI/SystemUI.apk \
+              system/system_ext/etc/permissions/privapp-permissions-unica-powermenu.xml; do
+            [ -f "mod/$f" ] || { echo "::error::$f missing in the old module"; exit 1; }
+          done
+          cp patchmodule/customize.sh mod/customize.sh
+          SHORT="${GITHUB_SHA::7}"
+          sed -i -e "s/^version=.*/version=${SHORT}/" \
+                 -e "s/^versionCode=.*/versionCode=$(date +%m%d%H%M)/" mod/module.prop
+          cat mod/module.prop
+          OUT="UN1CA-powermenu-a52sxq-${SHORT}.zip"
+          (cd mod && zip -r -X -9 "../$OUT" .)
+          ls -la "$OUT"
+          sha256sum "$OUT"
+          echo "MODULE_ZIP=$PWD/$OUT" >> "$GITHUB_ENV"
+          echo "MODULE_TAG=patch-r${GITHUB_RUN_NUMBER}-${SHORT}" >> "$GITHUB_ENV"
+
+      - name: Publish module as a release (direct download)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.MODULE_TAG }}
+          name: Power menu patch ${{ env.MODULE_TAG }}
+          prerelease: true
+          files: ${{ env.MODULE_ZIP }}
+          body: |
+            KernelSU module for UN1CA on Galaxy A52s 5G (a52sxq), repacked with the current installer script.
+            Install: KernelSU manager > Modules > Install from storage, then reboot.
+
+      - name: Upload module artifact (backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: UN1CA-powermenu-module-repack
+          path: ${{ env.MODULE_ZIP }}
+          if-no-files-found: error

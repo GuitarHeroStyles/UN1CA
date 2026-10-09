@@ -285,6 +285,24 @@ if $ICON_OK; then
     INJECT "$ITEMVIEW" "setViewAttrs(Landroid/view/View;Z)V" "unicaic" \
         "invoke-static {p0, p1}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaIconHook;->applyIcon(Ljava/lang/Object;Landroid/view/View;)V" || \
         ABORT "powermenu: failed to hook setViewAttrs()" || return 1
+    # In confirm mode setViewAttrs() reuses p1 for the description view, so also apply the icon
+    # to the root view that createView() returns
+    awk '
+        /^\.method/ { inside = (index($0, "createView(Z)Landroid/view/View;") > 0) }
+        /^\.end method/ { inside = 0 }
+        inside && /^[[:space:]]*return-object v0[[:space:]]*$/ {
+            print "    invoke-static {p0, v0}, Lcom/samsung/android/globalactions/presentation/viewmodel/UnicaIconHook;->applyIcon(Ljava/lang/Object;Landroid/view/View;)V"
+            n++
+        }
+        { print }
+        END { if (n == 0) exit 3 }
+    ' "$ITEMVIEW" > "$ITEMVIEW.tmp"
+    if [ -s "$ITEMVIEW.tmp" ]; then
+        mv "$ITEMVIEW.tmp" "$ITEMVIEW"
+    else
+        rm -f "$ITEMVIEW.tmp"
+        LOGW "powermenu: could not hook createView(), the confirm screen will have no icon"
+    fi
 else
     LOGW "powermenu: icon hook not applicable, entries will use the default icon"
 fi
